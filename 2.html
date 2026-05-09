@@ -6,14 +6,14 @@
     <style>
         body {
             background-color: #0d0d0d;
-            color: #ff8800; /* Dig Dug Orange */
+            color: #ff8800;
             font-family: 'Courier New', Courier, monospace;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; margin: 0; overflow: hidden;
         }
         h1 { font-size: 3rem; text-shadow: 3px 3px #ff0000; margin-bottom: 10px; }
         #game-container { position: relative; border: 5px solid #ff8800; box-shadow: 0 0 20px #ff4400; }
-        canvas { display: block; background-color: #4b2c20; /* Dirt Color */ }
+        canvas { display: block; background-color: #1a0f0a; }
         #overlay {
             display: none; position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%); width: 85%;
@@ -38,102 +38,138 @@
     </div>
 
     <script>
-        const canvas = document.getElementById("digDugCanvas");
-        const ctx = canvas.getContext("2d");
-        const overlay = document.getElementById("overlay");
-        const paraText = document.getElementById("paragraph-text");
-        const topicTitle = document.getElementById("topic-title");
-        const statusMsg = document.getElementById("status-msg");
+        window.onload = function() {
+            const canvas = document.getElementById("digDugCanvas");
+            const ctx = canvas.getContext("2d");
+            const overlay = document.getElementById("overlay");
+            const paraText = document.getElementById("paragraph-text");
+            const topicTitle = document.getElementById("topic-title");
+            const statusMsg = document.getElementById("status-msg");
 
-        const tileSize = 40;
-        const gridRes = 10;
-        let player = { x: 0, y: 0 };
-        let monsters = [];
-        let dirt = [];
-        let gameState = "PLAYING";
-        let currentParaIndex = 0;
+            const tileSize = 40;
+            const gridRes = 10;
+            let player, monsters, dirt, gameState, currentParaIndex;
 
-        const content = [
-            { title: "Top Gun", text: "Insert Top Gun text here..." },
-            { title: "Star Wars", text: "Insert Star Wars text here..." },
-            { title: "Michael Jordan", text: "Insert Michael Jordan text here..." },
-            { title: "Michael Jackson", text: "Insert Michael Jackson text here..." },
-            { title: "Atari", text: "Insert Atari text here..." },
-            { title: "Air Jordan", text: "Insert Air Jordan text here..." }
-        ];
+            const content = [
+                { title: "Top Gun", text: "Insert Top Gun text here..." },
+                { title: "Star Wars", text: "Insert Star Wars text here..." },
+                { title: "Michael Jordan", text: "Insert Michael Jordan text here..." },
+                { title: "Michael Jackson", text: "Insert Michael Jackson text here..." },
+                { title: "Atari", text: "Insert Atari text here..." },
+                { title: "Air Jordan", text: "Insert Air Jordan text here..." }
+            ];
 
-        function init() {
-            player = { x: 0, y: 0 };
-            currentParaIndex = 0;
-            gameState = "PLAYING";
-            overlay.style.display = "none";
-            
-            // Create Dirt Grid
-            dirt = [];
-            for(let i=0; i<gridRes; i++) {
-                dirt[i] = [];
-                for(let j=0; j<gridRes; j++) {
-                    dirt[i][j] = true; // True means dirt is there
+            function init() {
+                player = { x: 0, y: 0 };
+                currentParaIndex = 0;
+                gameState = "PLAYING";
+                overlay.style.display = "none";
+                
+                dirt = [];
+                for(let i=0; i<gridRes; i++) {
+                    dirt[i] = [];
+                    for(let j=0; j<gridRes; j++) { dirt[i][j] = true; }
                 }
-            }
-            dirt[0][0] = false; // Starting position is cleared
+                dirt[0][0] = false;
 
-            // Place 6 Monsters randomly
-            monsters = [];
-            while(monsters.length < 6) {
-                let rx = Math.floor(Math.random() * gridRes);
-                let ry = Math.floor(Math.random() * gridRes);
-                if((rx !== 0 || ry !== 0) && !monsters.some(m => m.x === rx && m.y === ry)) {
-                    monsters.push({ x: rx, y: ry });
-                }
-            }
-            draw();
-        }
-
-        document.addEventListener("keydown", (e) => {
-            if (gameState === "PAUSED" || gameState === "WON") {
-                if (e.keyCode === 32) resumeGame();
-                return;
-            }
-
-            let oldX = player.x;
-            let oldY = player.y;
-
-            if (e.key === "ArrowUp" && player.y > 0) player.y--;
-            if (e.key === "ArrowDown" && player.y < gridRes - 1) player.y++;
-            if (e.key === "ArrowLeft" && player.x > 0) player.x--;
-            if (e.key === "ArrowRight" && player.x < gridRes - 1) player.x++;
-
-            // Dig the dirt
-            dirt[player.x][player.y] = false;
-
-            // Check for Monster Collision
-            let monsterIndex = monsters.findIndex(m => m.x === player.x && m.y === player.y);
-            if (monsterIndex !== -1) {
-                monsters.splice(monsterIndex, 1);
-                showPrompt(content[currentParaIndex]);
-                currentParaIndex++;
-            }
-            draw();
-        });
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            // Draw Dirt/Tunnels
-            for(let i=0; i<gridRes; i++) {
-                for(let j=0; j<gridRes; j++) {
-                    if(dirt[i][j]) {
-                        ctx.fillStyle = "#8b4513"; // Brown dirt
-                        ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
-                        ctx.strokeStyle = "#4b2c20";
-                        ctx.strokeRect(i*tileSize, j*tileSize, tileSize, tileSize);
+                monsters = [];
+                while(monsters.length < 6) {
+                    let rx = Math.floor(Math.random() * gridRes);
+                    let ry = Math.floor(Math.random() * gridRes);
+                    if((rx !== 0 || ry !== 0) && !monsters.some(m => m.x === rx && m.y === ry)) {
+                        monsters.push({ x: rx, y: ry });
                     }
                 }
+                render();
             }
 
-            // Draw Monsters (Red Circles like Pookas)
-            monsters.forEach(m => {
-                ctx.fillStyle = "red";
-                ctx.beginPath();
-                ctx.arc(m.x*tileSize + 20, m.y*tileSize + 20, 15, 0, Math.PI*2);
+            function render() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Draw Dirt
+                for(let i=0; i<gridRes; i++) {
+                    for(let j=0; j<gridRes; j++) {
+                        if(dirt[i][j]) {
+                            ctx.fillStyle = "#8b4513"; 
+                            ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
+                            ctx.strokeStyle = "#4b2c20";
+                            ctx.strokeRect(i*tileSize, j*tileSize, tileSize, tileSize);
+                        }
+                    }
+                }
+
+                // Draw Monsters
+                monsters.forEach(m => {
+                    ctx.fillStyle = "#ff0000";
+                    ctx.beginPath();
+                    ctx.arc(m.x*tileSize + 20, m.y*tileSize + 20, 15, 0, Math.PI*2);
+                    ctx.fill();
+                    ctx.fillStyle = "white";
+                    ctx.fillRect(m.x*tileSize + 12, m.y*tileSize + 15, 4, 4);
+                    ctx.fillRect(m.x*tileSize + 24, m.y*tileSize + 15, 4, 4);
+                });
+
+                // Draw Player
+                ctx.fillStyle = "#ffff00";
+                ctx.fillRect(player.x*tileSize + 8, player.y*tileSize + 8, 24, 24);
+                ctx.strokeStyle = "white";
+                ctx.strokeRect(player.x*tileSize + 8, player.y*tileSize + 8, 24, 24);
+            }
+
+            document.addEventListener("keydown", (e) => {
+                if (gameState === "WON" || (gameState === "PAUSED" && e.keyCode !== 32)) return;
+                
+                if (e.keyCode === 32) {
+                    if (gameState === "PAUSED") resumeGame();
+                    else if (gameState === "WON") init();
+                    return;
+                }
+
+                if (gameState === "PLAYING") {
+                    if (e.key === "ArrowUp" && player.y > 0) player.y--;
+                    else if (e.key === "ArrowDown" && player.y < gridRes - 1) player.y++;
+                    else if (e.key === "ArrowLeft" && player.x > 0) player.x--;
+                    else if (e.key === "ArrowRight" && player.x < gridRes - 1) player.x++;
+
+                    dirt[player.x][player.y] = false;
+
+                    let mIdx = monsters.findIndex(m => m.x === player.x && m.y === player.y);
+                    if (mIdx !== -1) {
+                        monsters.splice(mIdx, 1);
+                        showPrompt(content[currentParaIndex]);
+                        currentParaIndex++;
+                    }
+                    render();
+                }
+            });
+
+            function showPrompt(obj) {
+                gameState = "PAUSED";
+                topicTitle.innerText = obj.title;
+                paraText.innerText = obj.text;
+                overlay.style.display = "block";
+            }
+
+            function resumeGame() {
+                if (currentParaIndex === 6) {
+                    winGame();
+                } else {
+                    gameState = "PLAYING";
+                    overlay.style.display = "none";
+                    render();
+                }
+            }
+
+            function winGame() {
+                gameState = "WON";
+                topicTitle.innerText = "YOU CLEARED THE LEVEL!";
+                paraText.innerText = "You successfully dug through all the 80s milestones.";
+                statusMsg.innerText = "PRESS SPACE TO RESTART";
+                overlay.style.display = "block";
+            }
+
+            init();
+        };
+    </script>
+</body>
+</html>
