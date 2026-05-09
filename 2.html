@@ -95,7 +95,7 @@
                 if(a.x < 0 || a.x > canvas.width) a.vx *= -1;
                 if(a.y < 0 || a.y > canvas.height-20) a.vy *= -1;
 
-                if(Math.random() < 0.003) { // Reduced firing rate to 1%
+                if(Math.random() < 0.005) { // Reduced firing rate to 1%
                     // Slower enemy bullets (0.015 multiplier instead of 0.03)
                     enemyBullets.push({x: a.x, y: a.y, vx: (ship.x - a.x)*0.005, vy: (ship.y - a.y)*0.015});
                 }
