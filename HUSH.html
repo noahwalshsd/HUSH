@@ -63,7 +63,7 @@
         const content = [
             { title: "Top Gun", text: "Paragraph text...", img: "download.jpg" },
             { title: "Star Wars", text: "Paragraph text...", img: "starwars.jpg" },
-            { title: "Michael Jordan", text: "Paragraph text...", img: "jordan.jpg" },
+            { title: "Michael Jordan", text: "Michael Jordan was a professional basketball player who was a 6 time championship winner with the Chicago Bulls. He won the regular season MVP 5 times and won the postseason MVP 6 times. He is commonly regarded as the greatest basketball player ever. He earned $90 million through his salary and earned $2.4 billion (pre-tax) from sponsorships. He is also well known for the Nike basketball shoes built around him.", img: "jordan.jpg" },
             { title: "Michael Jackson", text: "Paragraph text...", img: "jackson.jpg" },
             { title: "Atari", text: "Paragraph text...", img: "atari.jpg" },
             { title: "Air Jordan", text: "Paragraph text...", img: "airjordans.jpg" }
@@ -113,8 +113,8 @@
                 if(a.x < 0 || a.x > canvas.width) a.vx *= -1;
                 if(a.y < 0 || a.y > canvas.height-20) a.vy *= -1;
 
-                if(Math.random() < 0.006) { // Your 5% adjustment
-                    enemyBullets.push({x: a.x, y: a.y, vx: (ship.x - a.x)*0.006, vy: (ship.y - a.y)*0.006}); // Your .006 adjustment
+                if(Math.random() < 0.008) { // Your 5% adjustment
+                    enemyBullets.push({x: a.x, y: a.y, vx: (ship.x - a.x)*0.006, vy: (ship.y - a.y)*0.008}); // Your .006 adjustment
                 }
 
                 if(Math.hypot(ship.x - a.x, ship.y - a.y) < 25) hit();
@@ -178,8 +178,8 @@
             if(score === 6) {
                 gameState = "WON";
                 topicImg.style.display = "none";
-                document.getElementById("topic-title").innerText = "MISSION SUCCESS";
-                document.getElementById("paragraph-text").innerText = "YOU HAVE SECURED THE 80S TIMELINE.";
+                document.getElementById("topic-title").innerText = "Victory!";
+                document.getElementById("paragraph-text").innerText = "You have zoomed through the 80s and captured its best; Nike is also the godess of victory.";
                 overlay.style.display = "block";
             } else {
                 gameState = "PLAYING";
