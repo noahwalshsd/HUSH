@@ -2,170 +2,170 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HUSH - Hardcore Edition</title>
+    <title>HUSH - Defender Challenge</title>
     <style>
-        body { background-color: #050505; color: #ffcc00; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        h1 { font-size: 3rem; color: #ff0000; text-shadow: 2px 2px #fff; margin: 10px; }
-        #game-outer { position: relative; padding: 10px; background: #333; border-radius: 10px; border: 4px solid #555; }
-        canvas { display: block; background-color: #1a0f0a; }
-        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(0, 0, 0, 0.95); border: 4px solid #ffcc00; padding: 20px; text-align: center; z-index: 20; color: white; }
-        .stats { position: absolute; top: -40px; width: 100%; display: flex; justify-content: space-between; font-weight: bold; color: #00ffff; }
+        body { background-color: #000; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        h1 { font-size: 2.5rem; color: #fff; text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff; margin: 10px; }
+        #game-container { position: relative; border: 2px solid #555; background: #000; }
+        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: rgba(0, 0, 0, 0.95); border: 2px solid #00ffff; padding: 20px; text-align: center; z-index: 20; }
+        #overlay h2 { color: #ff00ff; margin-top: 0; }
+        .controls { color: #555; font-size: 0.8rem; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h1>HUSH</h1>
-    <div id="game-outer">
-        <div class="stats">
-            <span>LIVES: <span id="lives-val">3</span></span>
-            <span>MONSTERS: <span id="monst-val">6</span></span>
-        </div>
-        <canvas id="digDugCanvas" width="440" height="440"></canvas>
+    <h1>HUSH: DEFENDER</h1>
+    <div id="game-container">
+        <canvas id="defCanvas" width="600" height="400"></canvas>
         <div id="overlay">
             <h2 id="topic-title"></h2>
             <p id="paragraph-text"></p>
-            <div class="instruction">PRESS SPACE TO CONTINUE</div>
+            <div style="color:#00ffff; font-weight:bold;">PRESS SPACE TO RESUME</div>
         </div>
     </div>
+    <div class="controls">ARROWS: Fly | SHIFT: Fire | GOAL: Destroy 6 Red Aliens</div>
 
     <script>
     window.onload = function() {
-        const canvas = document.getElementById("digDugCanvas");
+        const canvas = document.getElementById("defCanvas");
         const ctx = canvas.getContext("2d");
         const overlay = document.getElementById("overlay");
         const paraText = document.getElementById("paragraph-text");
         const topicTitle = document.getElementById("topic-title");
 
-        const tileSize = 40;
-        const gridRes = 11;
-        let player, monsters, dirt, gameState, currentParaIndex, lives;
+        let ship = { x: 100, y: 200, vx: 0, vy: 0, dir: 1 };
+        let aliens = [], bullets = [], stars = [];
+        let gameState = "PLAYING", currentParaIndex = 0;
 
         const content = [
-            { title: "Top Gun", text: "Paragraph text here..." },
-            { title: "Star Wars", text: "Paragraph text here..." },
-            { title: "Michael Jordan", text: "Paragraph text here..." },
-            { title: "Michael Jackson", text: "Paragraph text here..." },
-            { title: "Atari", text: "Paragraph text here..." },
-            { title: "Air Jordan", text: "Paragraph text here..." }
+            { title: "Top Gun", text: "Paragraph text..." },
+            { title: "Star Wars", text: "Paragraph text..." },
+            { title: "Michael Jordan", text: "Paragraph text..." },
+            { title: "Michael Jackson", text: "Paragraph text..." },
+            { title: "Atari", text: "Paragraph text..." },
+            { title: "Air Jordan", text: "Paragraph text..." }
         ];
 
-        function init(resetFull = true) {
-            if(resetFull) {
-                currentParaIndex = 0;
-                lives = 3;
-                dirt = Array.from({length: gridRes}, () => Array(gridRes).fill(true));
-                for(let j=0; j<4; j++) dirt[5][j] = false;
-                monsters = [{x:2,y:3,hp:3},{x:8,y:3,hp:3},{x:2,y:7,hp:3},{x:8,y:7,hp:3},{x:5,y:9,hp:3},{x:1,y:9,hp:3}];
+        function init() {
+            aliens = [];
+            for(let i=0; i<6; i++) {
+                aliens.push({ x: Math.random()*canvas.width, y: Math.random()*(canvas.height-100), vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4 });
             }
-            player = { x: 5, y: 0, dir: 'down' };
-            gameState = "PLAYING";
-            overlay.style.display = "none";
-            updateUI();
-            render();
+            stars = [];
+            for(let i=0; i<50; i++) stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
-        function updateUI() {
-            document.getElementById("lives-val").innerText = lives;
-            document.getElementById("monst-val").innerText = monsters.length;
-        }
-
-        function moveMonsters() {
-            if(gameState !== "PLAYING") return;
-            monsters.forEach(m => {
-                // Ghost logic: Monsters can move through dirt slowly, or fast through tunnels
-                let dx = player.x - m.x;
-                let dy = player.y - m.y;
-                if(Math.random() > 0.7) { // AI Delay to make it winnable
-                    if(Math.abs(dx) > Math.abs(dy)) m.x += Math.sign(dx);
-                    else m.y += Math.sign(dy);
-                }
-                if(m.x === player.x && m.y === player.y) die();
-            });
-            render();
-        }
-
-        function die() {
-            lives--;
-            if(lives <= 0) {
-                gameState = "GAMEOVER";
-                topicTitle.innerText = "GAME OVER";
-                paraText.innerText = "The 80s legends were too much for you!";
-                overlay.style.display = "block";
-            } else {
-                init(false);
-            }
-        }
-
-        document.addEventListener("keydown", (e) => {
-            if(gameState === "PAUSED" && e.keyCode === 32) { resumeGame(); return; }
-            if(gameState === "GAMEOVER" && e.keyCode === 32) { init(true); return; }
-            if(gameState !== "PLAYING") return;
-
-            if(e.key.startsWith("Arrow")) {
-                if(e.key === "ArrowUp" && player.y > 0) player.y--;
-                if(e.key === "ArrowDown" && player.y < gridRes-1) player.y++;
-                if(e.key === "ArrowLeft" && player.x > 0) player.x--;
-                if(e.key === "ArrowRight" && player.x < gridRes-1) player.x++;
-                dirt[player.x][player.y] = false;
-                moveMonsters();
-            }
-
+        const keys = {};
+        window.onkeydown = (e) => { 
+            keys[e.code] = true; 
+            if(e.code === "Space" && gameState === "PAUSED") resume();
             if(e.code === "ShiftLeft" || e.code === "ShiftRight") {
-                // Fire Pump
-                monsters.forEach((m, i) => {
-                    let dist = Math.abs(m.x - player.x) + Math.abs(m.y - player.y);
-                    if(dist <= 2) { // Range of pump
-                        m.hp--;
-                        if(m.hp <= 0) {
-                            monsters.splice(i, 1);
-                            showPrompt(content[currentParaIndex]);
-                            currentParaIndex++;
-                        }
+                if(gameState === "PLAYING") bullets.push({x: ship.x + (ship.dir*20), y: ship.y+5, vx: ship.dir*10});
+            }
+        };
+        window.onkeyup = (e) => keys[e.code] = false;
+
+        function update() {
+            if(gameState !== "PLAYING") return;
+
+            // Physics
+            if(keys["ArrowUp"]) ship.vy -= 0.5;
+            if(keys["ArrowDown"]) ship.vy += 0.5;
+            if(keys["ArrowLeft"]) { ship.vx -= 0.5; ship.dir = -1; }
+            if(keys["ArrowRight"]) { ship.vx += 0.5; ship.dir = 1; }
+
+            ship.vx *= 0.95; ship.vy *= 0.95; // Friction
+            ship.x += ship.vx; ship.y += ship.vy;
+
+            // Screen Wrap
+            if(ship.x > canvas.width) ship.x = 0;
+            if(ship.x < 0) ship.x = canvas.width;
+            if(ship.y < 0) ship.y = 0;
+            if(ship.y > canvas.height-50) ship.y = canvas.height-50;
+
+            // Update Aliens
+            aliens.forEach((a, i) => {
+                a.x += a.vx; a.y += a.vy;
+                if(a.x > canvas.width || a.x < 0) a.vx *= -1;
+                if(a.y > canvas.height-100 || a.y < 0) a.vy *= -1;
+
+                // Ship Collision
+                let dist = Math.hypot(ship.x - a.x, ship.y - a.y);
+                if(dist < 20) resetShip();
+            });
+
+            // Update Bullets
+            bullets.forEach((b, bi) => {
+                b.x += b.vx;
+                aliens.forEach((a, ai) => {
+                    if(Math.hypot(b.x - a.x, b.y - a.y) < 20) {
+                        bullets.splice(bi, 1);
+                        aliens.splice(ai, 1);
+                        triggerPara();
                     }
                 });
-            }
-            render();
-        });
-
-        function render() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            for(let i=0; i<gridRes; i++) {
-                for(let j=0; j<gridRes; j++) {
-                    if(dirt[i][j]) {
-                        ctx.fillStyle = j < 5 ? "#d35400" : "#a04000";
-                        ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
-                    }
-                }
-            }
-            monsters.forEach(m => {
-                ctx.fillStyle = m.hp === 1 ? "white" : "red"; // Flashes white when almost dead
-                ctx.beginPath(); ctx.arc(m.x*tileSize+20, m.y*tileSize+20, 15 - (m.hp*2), 0, 7); ctx.fill();
             });
-            ctx.fillStyle = "yellow";
-            ctx.fillRect(player.x*tileSize+10, player.y*tileSize+10, 20, 20);
+            render();
+            requestAnimationFrame(update);
         }
 
-        function showPrompt(obj) {
+        function triggerPara() {
             gameState = "PAUSED";
-            topicTitle.innerText = obj.title;
-            paraText.innerText = obj.text;
+            topicTitle.innerText = content[currentParaIndex].title;
+            paraText.innerText = content[currentParaIndex].text;
+            currentParaIndex++;
             overlay.style.display = "block";
-            updateUI();
         }
 
-        function resumeGame() {
+        function resume() {
+            overlay.style.display = "none";
             if(currentParaIndex === 6) {
-                gameState = "WON";
-                topicTitle.innerText = "CHAMPION";
-                paraText.innerText = "You conquered the 80s!";
-                overlay.style.display = "block";
+                alert("MISSION COMPLETE: YOU SAVED THE 80s");
+                location.reload();
             } else {
                 gameState = "PLAYING";
-                overlay.style.display = "none";
+                update();
             }
+        }
+
+        function resetShip() {
+            ship.x = 100; ship.y = 200; ship.vx = 0; ship.vy = 0;
+        }
+
+        function render() {
+            ctx.fillStyle = "black";
+            ctx.fillRect(0,0,canvas.width, canvas.height);
+            
+            // Stars
+            ctx.fillStyle = "white";
+            stars.forEach(s => ctx.fillRect(s.x, s.y, s.s, s.s));
+
+            // Mountains
+            ctx.strokeStyle = "#555";
+            ctx.beginPath();
+            ctx.moveTo(0, 350); ctx.lineTo(100, 300); ctx.lineTo(200, 350); ctx.lineTo(300, 250); ctx.lineTo(450, 350); ctx.lineTo(600, 280);
+            ctx.stroke();
+
+            // Ship (Defender Style)
+            ctx.fillStyle = "white";
+            ctx.fillRect(ship.x, ship.y, 20, 10);
+            ctx.fillStyle = "red";
+            ctx.fillRect(ship.x + (ship.dir === 1 ? 15 : -5), ship.y+2, 10, 6);
+
+            // Aliens
+            aliens.forEach(a => {
+                ctx.fillStyle = "#0f0";
+                ctx.beginPath(); ctx.arc(a.x, a.y, 10, 0, 7); ctx.fill();
+                ctx.fillStyle = "red"; ctx.fillRect(a.x-4, a.y-4, 8, 8);
+            });
+
+            // Bullets
+            ctx.fillStyle = "#0ff";
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, 10, 2));
         }
 
         init();
+        update();
     };
     </script>
 </body>
