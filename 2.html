@@ -2,65 +2,70 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HUSH - Defender Challenge</title>
+    <title>HUSH - Ultra Hardcore</title>
     <style>
         body { background-color: #000; color: #fff; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
-        h1 { font-size: 2.5rem; color: #fff; text-shadow: 0 0 10px #ff00ff, 0 0 20px #00ffff; margin: 10px; }
-        #game-container { position: relative; border: 2px solid #555; background: #000; }
-        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; background: rgba(0, 0, 0, 0.95); border: 2px solid #00ffff; padding: 20px; text-align: center; z-index: 20; }
-        #overlay h2 { color: #ff00ff; margin-top: 0; }
-        .controls { color: #555; font-size: 0.8rem; margin-top: 10px; }
+        #game-container { position: relative; border: 3px solid #ff0000; box-shadow: 0 0 20px #ff0000; }
+        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(0, 0, 0, 0.95); border: 2px solid #00ffff; padding: 20px; text-align: center; z-index: 20; }
+        .stats { font-size: 1.2rem; color: #ff00ff; margin-bottom: 5px; width: 600px; display: flex; justify-content: space-between; }
+        #flash { pointer-events: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: red; opacity: 0; transition: opacity 0.1s; }
     </style>
 </head>
 <body>
 
-    <h1>HUSH: DEFENDER</h1>
+    <div class="stats">
+        <span>LIVES: <span id="lives">3</span></span>
+        <span>HUSH DATA: <span id="data">0/6</span></span>
+    </div>
     <div id="game-container">
         <canvas id="defCanvas" width="600" height="400"></canvas>
+        <div id="flash"></div>
         <div id="overlay">
-            <h2 id="topic-title"></h2>
+            <h2 id="topic-title" style="color:#ff00ff"></h2>
             <p id="paragraph-text"></p>
-            <div style="color:#00ffff; font-weight:bold;">PRESS SPACE TO RESUME</div>
+            <div style="color:#00ffff; font-weight:bold; margin-top:15px; animation: blink 0.5s infinite;">PRESS SPACE TO CONTINUE</div>
         </div>
     </div>
-    <div class="controls">ARROWS: Fly | SHIFT: Fire | GOAL: Destroy 6 Red Aliens</div>
+    <p style="color: #444; font-size: 0.7rem;">ARROWS: THRUST | SHIFT: LASER | SPACE: RESUME</p>
 
     <script>
     window.onload = function() {
         const canvas = document.getElementById("defCanvas");
         const ctx = canvas.getContext("2d");
         const overlay = document.getElementById("overlay");
-        const paraText = document.getElementById("paragraph-text");
-        const topicTitle = document.getElementById("topic-title");
+        const flash = document.getElementById("flash");
 
-        let ship = { x: 100, y: 200, vx: 0, vy: 0, dir: 1 };
-        let aliens = [], bullets = [], stars = [];
-        let gameState = "PLAYING", currentParaIndex = 0;
+        let ship = { x: 50, y: 200, vx: 0, vy: 0, dir: 1, w: 25, h: 12 };
+        let aliens = [], bullets = [], enemyBullets = [], lives = 3, score = 0, gameState = "PLAYING";
 
         const content = [
-            { title: "Top Gun", text: "Paragraph text..." },
-            { title: "Star Wars", text: "Paragraph text..." },
-            { title: "Michael Jordan", text: "Paragraph text..." },
-            { title: "Michael Jackson", text: "Paragraph text..." },
-            { title: "Atari", text: "Paragraph text..." },
-            { title: "Air Jordan", text: "Paragraph text..." }
+            { title: "Top Gun", text: "Paragraph 1..." },
+            { title: "Star Wars", text: "Paragraph 2..." },
+            { title: "Michael Jordan", text: "Paragraph 3..." },
+            { title: "Michael Jackson", text: "Paragraph 4..." },
+            { title: "Atari", text: "Paragraph 5..." },
+            { title: "Air Jordan", text: "Paragraph 6..." }
         ];
 
-        function init() {
+        function spawnAliens() {
             aliens = [];
             for(let i=0; i<6; i++) {
-                aliens.push({ x: Math.random()*canvas.width, y: Math.random()*(canvas.height-100), vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4 });
+                aliens.push({ 
+                    x: 300 + Math.random()*250, 
+                    y: Math.random()*350, 
+                    vx: (Math.random()-0.5)*6, 
+                    vy: (Math.random()-0.5)*6 
+                });
             }
-            stars = [];
-            for(let i=0; i<50; i++) stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
         const keys = {};
         window.onkeydown = (e) => { 
             keys[e.code] = true; 
             if(e.code === "Space" && gameState === "PAUSED") resume();
+            if(e.code === "Space" && gameState === "GAMEOVER") location.reload();
             if(e.code === "ShiftLeft" || e.code === "ShiftRight") {
-                if(gameState === "PLAYING") bullets.push({x: ship.x + (ship.dir*20), y: ship.y+5, vx: ship.dir*10});
+                if(gameState === "PLAYING") bullets.push({x: ship.x + (ship.dir === 1 ? 25 : 0), y: ship.y+5, vx: ship.dir*12});
             }
         };
         window.onkeyup = (e) => keys[e.code] = false;
@@ -68,103 +73,116 @@
         function update() {
             if(gameState !== "PLAYING") return;
 
-            // Physics
-            if(keys["ArrowUp"]) ship.vy -= 0.5;
-            if(keys["ArrowDown"]) ship.vy += 0.5;
-            if(keys["ArrowLeft"]) { ship.vx -= 0.5; ship.dir = -1; }
-            if(keys["ArrowRight"]) { ship.vx += 0.5; ship.dir = 1; }
+            // Thrust Physics
+            if(keys["ArrowUp"]) ship.vy -= 0.6;
+            if(keys["ArrowDown"]) ship.vy += 0.6;
+            if(keys["ArrowLeft"]) { ship.vx -= 0.6; ship.dir = -1; }
+            if(keys["ArrowRight"]) { ship.vx += 0.6; ship.dir = 1; }
 
-            ship.vx *= 0.95; ship.vy *= 0.95; // Friction
+            ship.vx *= 0.98; ship.vy *= 0.98; // Low friction drift
             ship.x += ship.vx; ship.y += ship.vy;
 
-            // Screen Wrap
-            if(ship.x > canvas.width) ship.x = 0;
+            // Borders
             if(ship.x < 0) ship.x = canvas.width;
-            if(ship.y < 0) ship.y = 0;
-            if(ship.y > canvas.height-50) ship.y = canvas.height-50;
+            if(ship.x > canvas.width) ship.x = 0;
+            if(ship.y < 0) { ship.y = 0; ship.vy = 0; }
+            if(ship.y > canvas.height-12) { ship.y = canvas.height-12; ship.vy = 0; }
 
-            // Update Aliens
-            aliens.forEach((a, i) => {
+            // Update Aliens & AI Fire
+            aliens.forEach((a, ai) => {
                 a.x += a.vx; a.y += a.vy;
-                if(a.x > canvas.width || a.x < 0) a.vx *= -1;
-                if(a.y > canvas.height-100 || a.y < 0) a.vy *= -1;
+                if(a.x < 0 || a.x > canvas.width) a.vx *= -1;
+                if(a.y < 0 || a.y > canvas.height-20) a.vy *= -1;
 
-                // Ship Collision
-                let dist = Math.hypot(ship.x - a.x, ship.y - a.y);
-                if(dist < 20) resetShip();
+                if(Math.random() < 0.02) { // 2% chance per frame to shoot
+                    enemyBullets.push({x: a.x, y: a.y, vx: (ship.x - a.x)*0.03, vy: (ship.y - a.y)*0.03});
+                }
+
+                if(Math.hypot(ship.x - a.x, ship.y - a.y) < 20) hit();
             });
 
-            // Update Bullets
+            // Player Bullets
             bullets.forEach((b, bi) => {
                 b.x += b.vx;
                 aliens.forEach((a, ai) => {
                     if(Math.hypot(b.x - a.x, b.y - a.y) < 20) {
                         bullets.splice(bi, 1);
                         aliens.splice(ai, 1);
-                        triggerPara();
+                        showData();
                     }
                 });
             });
+
+            // Enemy Bullets
+            enemyBullets.forEach((eb, ebi) => {
+                eb.x += eb.vx; eb.y += eb.vy;
+                if(Math.hypot(ship.x - eb.x, ship.y - eb.y) < 15) {
+                    enemyBullets.splice(ebi, 1);
+                    hit();
+                }
+            });
+
             render();
             requestAnimationFrame(update);
         }
 
-        function triggerPara() {
+        function hit() {
+            lives--;
+            document.getElementById("lives").innerText = lives;
+            flash.style.opacity = "1";
+            setTimeout(() => flash.style.opacity = "0", 100);
+            ship.x = 50; ship.y = 200; ship.vx = 0; ship.vy = 0;
+            if(lives <= 0) {
+                gameState = "GAMEOVER";
+                document.getElementById("topic-title").innerText = "SYSTEM CRASHED";
+                document.getElementById("paragraph-text").innerText = "LIVES DEPLETED. DATA LOST.";
+                overlay.style.display = "block";
+            }
+        }
+
+        function showData() {
             gameState = "PAUSED";
-            topicTitle.innerText = content[currentParaIndex].title;
-            paraText.innerText = content[currentParaIndex].text;
-            currentParaIndex++;
+            score++;
+            document.getElementById("data").innerText = score + "/6";
+            document.getElementById("topic-title").innerText = content[score-1].title;
+            document.getElementById("paragraph-text").innerText = content[score-1].text;
             overlay.style.display = "block";
         }
 
         function resume() {
             overlay.style.display = "none";
-            if(currentParaIndex === 6) {
-                alert("MISSION COMPLETE: YOU SAVED THE 80s");
-                location.reload();
+            if(score === 6) {
+                gameState = "WON";
+                document.getElementById("topic-title").innerText = "80s RETRIEVED";
+                document.getElementById("paragraph-text").innerText = "YOU ARE THE DEFENDER OF HISTORY.";
+                overlay.style.display = "block";
             } else {
                 gameState = "PLAYING";
                 update();
             }
         }
 
-        function resetShip() {
-            ship.x = 100; ship.y = 200; ship.vx = 0; ship.vy = 0;
-        }
-
         function render() {
             ctx.fillStyle = "black";
             ctx.fillRect(0,0,canvas.width, canvas.height);
-            
-            // Stars
-            ctx.fillStyle = "white";
-            stars.forEach(s => ctx.fillRect(s.x, s.y, s.s, s.s));
-
-            // Mountains
-            ctx.strokeStyle = "#555";
-            ctx.beginPath();
-            ctx.moveTo(0, 350); ctx.lineTo(100, 300); ctx.lineTo(200, 350); ctx.lineTo(300, 250); ctx.lineTo(450, 350); ctx.lineTo(600, 280);
-            ctx.stroke();
-
-            // Ship (Defender Style)
-            ctx.fillStyle = "white";
-            ctx.fillRect(ship.x, ship.y, 20, 10);
+            // Ship
+            ctx.fillStyle = "#00ffff";
+            ctx.fillRect(ship.x, ship.y, ship.w, ship.h);
             ctx.fillStyle = "red";
-            ctx.fillRect(ship.x + (ship.dir === 1 ? 15 : -5), ship.y+2, 10, 6);
-
+            ctx.fillRect(ship.x + (ship.dir === 1 ? 20 : -5), ship.y+3, 10, 6);
             // Aliens
             aliens.forEach(a => {
-                ctx.fillStyle = "#0f0";
+                ctx.fillStyle = "#ff00ff";
                 ctx.beginPath(); ctx.arc(a.x, a.y, 10, 0, 7); ctx.fill();
-                ctx.fillStyle = "red"; ctx.fillRect(a.x-4, a.y-4, 8, 8);
             });
-
             // Bullets
-            ctx.fillStyle = "#0ff";
-            bullets.forEach(b => ctx.fillRect(b.x, b.y, 10, 2));
+            ctx.fillStyle = "white";
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, 15, 2));
+            ctx.fillStyle = "red";
+            enemyBullets.forEach(eb => ctx.fillRect(eb.x, eb.y, 4, 4));
         }
 
-        init();
+        spawnAliens();
         update();
     };
     </script>
