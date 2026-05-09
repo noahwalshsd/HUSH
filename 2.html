@@ -185,4 +185,18 @@
 
             // Player Lasers (White)
             ctx.fillStyle = "white";
-            bullets.forEach(b => ctx.fillRect(b.x, b.y, 20, 3
+            bullets.forEach(b => ctx.fillRect(b.x, b.y, 20, 3));
+
+            // Enemy Bullets (Slow Red dots)
+            ctx.fillStyle = "red";
+            enemyBullets.forEach(eb => {
+                ctx.beginPath(); ctx.arc(eb.x, eb.y, 4, 0, 7); ctx.fill();
+            });
+        }
+
+        spawnAliens();
+        update();
+    };
+    </script>
+</body>
+</html>
