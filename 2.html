@@ -2,217 +2,171 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HUSH - Arcade Edition</title>
+    <title>HUSH - Hardcore Edition</title>
     <style>
-        body {
-            background-color: #050505;
-            color: #ffcc00;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            height: 100vh; margin: 0; overflow: hidden;
-        }
-        h1 { font-size: 3rem; color: #ff0000; text-shadow: 2px 2px #ffffff, 4px 4px #0000ff; margin: 10px; font-style: italic; }
-        
-        #game-outer {
-            position: relative;
-            padding: 10px;
-            background: #333;
-            border-radius: 10px;
-            box-shadow: 0 0 30px rgba(255,0,0,0.5);
-        }
-
-        #game-container { position: relative; border: 4px solid #000; }
-        canvas { display: block; background-color: #1a0f0a; cursor: none; }
-
-        /* Scanline Effect */
-        #game-container::after {
-            content: " ";
-            position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 4px, 3px 100%;
-            pointer-events: none;
-            z-index: 5;
-        }
-
-        #overlay {
-            display: none; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%); width: 80%;
-            background: rgba(0, 0, 0, 0.9); border: 4px solid #ffcc00;
-            padding: 20px; text-align: center; z-index: 20; color: white;
-            box-shadow: 0 0 15px #ffcc00;
-        }
-        #overlay h2 { color: #ff0000; text-decoration: underline; margin-top: 0; }
-        .instruction { color: #00ffff; font-size: 0.8rem; margin-top: 15px; animation: blink 1s infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
+        body { background-color: #050505; color: #ffcc00; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden; }
+        h1 { font-size: 3rem; color: #ff0000; text-shadow: 2px 2px #fff; margin: 10px; }
+        #game-outer { position: relative; padding: 10px; background: #333; border-radius: 10px; border: 4px solid #555; }
+        canvas { display: block; background-color: #1a0f0a; }
+        #overlay { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 80%; background: rgba(0, 0, 0, 0.95); border: 4px solid #ffcc00; padding: 20px; text-align: center; z-index: 20; color: white; }
+        .stats { position: absolute; top: -40px; width: 100%; display: flex; justify-content: space-between; font-weight: bold; color: #00ffff; }
     </style>
 </head>
 <body>
 
     <h1>HUSH</h1>
     <div id="game-outer">
-        <div id="game-container">
-            <canvas id="digDugCanvas" width="440" height="440"></canvas>
-            <div id="overlay">
-                <h2 id="topic-title"></h2>
-                <p id="paragraph-text"></p>
-                <div id="status-msg" class="instruction">INSERT SPACE TO CONTINUE</div>
-            </div>
+        <div class="stats">
+            <span>LIVES: <span id="lives-val">3</span></span>
+            <span>MONSTERS: <span id="monst-val">6</span></span>
+        </div>
+        <canvas id="digDugCanvas" width="440" height="440"></canvas>
+        <div id="overlay">
+            <h2 id="topic-title"></h2>
+            <p id="paragraph-text"></p>
+            <div class="instruction">PRESS SPACE TO CONTINUE</div>
         </div>
     </div>
 
     <script>
-        window.onload = function() {
-            const canvas = document.getElementById("digDugCanvas");
-            const ctx = canvas.getContext("2d");
-            const overlay = document.getElementById("overlay");
-            const paraText = document.getElementById("paragraph-text");
-            const topicTitle = document.getElementById("topic-title");
+    window.onload = function() {
+        const canvas = document.getElementById("digDugCanvas");
+        const ctx = canvas.getContext("2d");
+        const overlay = document.getElementById("overlay");
+        const paraText = document.getElementById("paragraph-text");
+        const topicTitle = document.getElementById("topic-title");
 
-            const tileSize = 40;
-            const gridRes = 11;
-            let player, monsters, dirt, gameState, currentParaIndex;
-            let walkCycle = 0;
+        const tileSize = 40;
+        const gridRes = 11;
+        let player, monsters, dirt, gameState, currentParaIndex, lives;
 
-            const content = [
-                { title: "Top Gun", text: "Replace with your Top Gun words." },
-                { title: "Star Wars", text: "Replace with your Star Wars words." },
-                { title: "Michael Jordan", text: "Replace with your Michael Jordan words." },
-                { title: "Michael Jackson", text: "Replace with your Michael Jackson words." },
-                { title: "Atari", text: "Replace with your Atari words." },
-                { title: "Air Jordan", text: "Replace with your Air Jordan words." }
-            ];
+        const content = [
+            { title: "Top Gun", text: "Paragraph text here..." },
+            { title: "Star Wars", text: "Paragraph text here..." },
+            { title: "Michael Jordan", text: "Paragraph text here..." },
+            { title: "Michael Jackson", text: "Paragraph text here..." },
+            { title: "Atari", text: "Paragraph text here..." },
+            { title: "Air Jordan", text: "Paragraph text here..." }
+        ];
 
-            function init() {
-                player = { x: 5, y: 0, dir: 'down' };
+        function init(resetFull = true) {
+            if(resetFull) {
                 currentParaIndex = 0;
-                gameState = "PLAYING";
-                overlay.style.display = "none";
-                dirt = [];
-                for(let i=0; i<gridRes; i++) {
-                    dirt[i] = [];
-                    for(let j=0; j<gridRes; j++) { dirt[i][j] = true; }
+                lives = 3;
+                dirt = Array.from({length: gridRes}, () => Array(gridRes).fill(true));
+                for(let j=0; j<4; j++) dirt[5][j] = false;
+                monsters = [{x:2,y:3,hp:3},{x:8,y:3,hp:3},{x:2,y:7,hp:3},{x:8,y:7,hp:3},{x:5,y:9,hp:3},{x:1,y:9,hp:3}];
+            }
+            player = { x: 5, y: 0, dir: 'down' };
+            gameState = "PLAYING";
+            overlay.style.display = "none";
+            updateUI();
+            render();
+        }
+
+        function updateUI() {
+            document.getElementById("lives-val").innerText = lives;
+            document.getElementById("monst-val").innerText = monsters.length;
+        }
+
+        function moveMonsters() {
+            if(gameState !== "PLAYING") return;
+            monsters.forEach(m => {
+                // Ghost logic: Monsters can move through dirt slowly, or fast through tunnels
+                let dx = player.x - m.x;
+                let dy = player.y - m.y;
+                if(Math.random() > 0.7) { // AI Delay to make it winnable
+                    if(Math.abs(dx) > Math.abs(dy)) m.x += Math.sign(dx);
+                    else m.y += Math.sign(dy);
                 }
-                // Clear a starting vertical shaft
-                for(let j=0; j<3; j++) dirt[5][j] = false;
+                if(m.x === player.x && m.y === player.y) die();
+            });
+            render();
+        }
 
-                monsters = [];
-                const spawnPoints = [[2,3],[8,3],[2,7],[8,7],[5,9],[1,9]];
-                spawnPoints.forEach(pt => monsters.push({x: pt[0], y: pt[1]}));
-                render();
+        function die() {
+            lives--;
+            if(lives <= 0) {
+                gameState = "GAMEOVER";
+                topicTitle.innerText = "GAME OVER";
+                paraText.innerText = "The 80s legends were too much for you!";
+                overlay.style.display = "block";
+            } else {
+                init(false);
+            }
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if(gameState === "PAUSED" && e.keyCode === 32) { resumeGame(); return; }
+            if(gameState === "GAMEOVER" && e.keyCode === 32) { init(true); return; }
+            if(gameState !== "PLAYING") return;
+
+            if(e.key.startsWith("Arrow")) {
+                if(e.key === "ArrowUp" && player.y > 0) player.y--;
+                if(e.key === "ArrowDown" && player.y < gridRes-1) player.y++;
+                if(e.key === "ArrowLeft" && player.x > 0) player.x--;
+                if(e.key === "ArrowRight" && player.x < gridRes-1) player.x++;
+                dirt[player.x][player.y] = false;
+                moveMonsters();
             }
 
-            function drawPlayer(x, y) {
-                ctx.save();
-                ctx.translate(x * tileSize + 20, y * tileSize + 20);
-                // Wiggle animation
-                let wiggle = Math.sin(walkCycle) * 3;
-                
-                // Body (White suit)
-                ctx.fillStyle = "white";
-                ctx.fillRect(-12, -15 + wiggle, 24, 25);
-                // Helmet (Blue)
-                ctx.fillStyle = "#00aaff";
-                ctx.fillRect(-10, -18 + wiggle, 20, 12);
-                // Boots (Red)
-                ctx.fillStyle = "red";
-                ctx.fillRect(-12, 10 + wiggle, 10, 8);
-                ctx.fillRect(2, 10 + wiggle, 10, 8);
-                ctx.restore();
-            }
-
-            function drawPooka(x, y) {
-                ctx.save();
-                ctx.translate(x * tileSize + 20, y * tileSize + 20);
-                // Round Body
-                ctx.fillStyle = "#ff4400";
-                ctx.beginPath();
-                ctx.arc(0, 0, 16, 0, Math.PI*2);
-                ctx.fill();
-                // Yellow Goggles
-                ctx.fillStyle = "yellow";
-                ctx.fillRect(-12, -5, 24, 10);
-                // Eyes
-                ctx.fillStyle = "black";
-                ctx.fillRect(-8, -2, 4, 4);
-                ctx.fillRect(4, -2, 4, 4);
-                ctx.restore();
-            }
-
-            function render() {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-                // Draw Layered Dirt
-                for(let i=0; i<gridRes; i++) {
-                    for(let j=0; j<gridRes; j++) {
-                        if(dirt[i][j]) {
-                            if(j < 3) ctx.fillStyle = "#e67e22";      // Top Layer
-                            else if(j < 7) ctx.fillStyle = "#d35400"; // Mid Layer
-                            else ctx.fillStyle = "#a04000";           // Deep Layer
-                            
-                            ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
-                            ctx.strokeStyle = "rgba(0,0,0,0.1)";
-                            ctx.strokeRect(i*tileSize, j*tileSize, tileSize, tileSize);
+            if(e.code === "ShiftLeft" || e.code === "ShiftRight") {
+                // Fire Pump
+                monsters.forEach((m, i) => {
+                    let dist = Math.abs(m.x - player.x) + Math.abs(m.y - player.y);
+                    if(dist <= 2) { // Range of pump
+                        m.hp--;
+                        if(m.hp <= 0) {
+                            monsters.splice(i, 1);
+                            showPrompt(content[currentParaIndex]);
+                            currentParaIndex++;
                         }
                     }
-                }
-
-                monsters.forEach(m => drawPooka(m.x, m.y));
-                drawPlayer(player.x, player.y);
+                });
             }
+            render();
+        });
 
-            document.addEventListener("keydown", (e) => {
-                if (gameState === "WON" || (gameState === "PAUSED" && e.keyCode !== 32)) return;
-                
-                if (e.keyCode === 32) {
-                    if (gameState === "PAUSED") resumeGame();
-                    else if (gameState === "WON") init();
-                    return;
-                }
-
-                if (gameState === "PLAYING") {
-                    walkCycle += 0.5;
-                    if (e.key === "ArrowUp" && player.y > 0) player.y--;
-                    else if (e.key === "ArrowDown" && player.y < gridRes - 1) player.y++;
-                    else if (e.key === "ArrowLeft" && player.x > 0) player.x--;
-                    else if (e.key === "ArrowRight" && player.x < gridRes - 1) player.x++;
-
-                    dirt[player.x][player.y] = false;
-
-                    let mIdx = monsters.findIndex(m => m.x === player.x && m.y === player.y);
-                    if (mIdx !== -1) {
-                        monsters.splice(mIdx, 1);
-                        showPrompt(content[currentParaIndex]);
-                        currentParaIndex++;
+        function render() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for(let i=0; i<gridRes; i++) {
+                for(let j=0; j<gridRes; j++) {
+                    if(dirt[i][j]) {
+                        ctx.fillStyle = j < 5 ? "#d35400" : "#a04000";
+                        ctx.fillRect(i*tileSize, j*tileSize, tileSize, tileSize);
                     }
-                    render();
                 }
+            }
+            monsters.forEach(m => {
+                ctx.fillStyle = m.hp === 1 ? "white" : "red"; // Flashes white when almost dead
+                ctx.beginPath(); ctx.arc(m.x*tileSize+20, m.y*tileSize+20, 15 - (m.hp*2), 0, 7); ctx.fill();
             });
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(player.x*tileSize+10, player.y*tileSize+10, 20, 20);
+        }
 
-            function showPrompt(obj) {
-                gameState = "PAUSED";
-                topicTitle.innerText = obj.title;
-                paraText.innerText = obj.text;
-                overlay.style.display = "block";
-            }
+        function showPrompt(obj) {
+            gameState = "PAUSED";
+            topicTitle.innerText = obj.title;
+            paraText.innerText = obj.text;
+            overlay.style.display = "block";
+            updateUI();
+        }
 
-            function resumeGame() {
-                if (currentParaIndex === 6) winGame();
-                else {
-                    gameState = "PLAYING";
-                    overlay.style.display = "none";
-                    render();
-                }
-            }
-
-            function winGame() {
+        function resumeGame() {
+            if(currentParaIndex === 6) {
                 gameState = "WON";
-                topicTitle.innerText = "GAME CLEAR";
-                paraText.innerText = "ALL DATA RETRIEVED.";
+                topicTitle.innerText = "CHAMPION";
+                paraText.innerText = "You conquered the 80s!";
                 overlay.style.display = "block";
+            } else {
+                gameState = "PLAYING";
+                overlay.style.display = "none";
             }
+        }
 
-            init();
-        };
+        init();
+    };
     </script>
 </body>
 </html>
